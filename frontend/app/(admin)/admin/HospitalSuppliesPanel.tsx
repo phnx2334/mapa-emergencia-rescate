@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { apiFetch } from "@/lib/api";
+import {useCallback, useEffect, useMemo, useState} from "react";
+import {apiFetch} from "@/lib/api";
 import {
   HOSPITAL_SUPPLY_CATEGORIES,
   HOSPITAL_SUPPLY_CATEGORY_META,
@@ -86,7 +86,7 @@ function fmt(ts: number): string {
   return new Date(ts).toLocaleString("es-VE");
 }
 
-export default function HospitalSuppliesPanel({ token, query }: Props) {
+export default function HospitalSuppliesPanel({token, query}: Props) {
   const [data, setData] = useState<AdminHospitalSupplyData | null>(null);
   const [selectedHospitalId, setSelectedHospitalId] = useState<string>("");
   const [selectedCategory, setSelectedCategory] =
@@ -112,11 +112,11 @@ export default function HospitalSuppliesPanel({ token, query }: Props) {
 
   const load = useCallback(async () => {
     const res = await apiFetch("/api/admin/hospital-supplies", {
-      headers: { "x-admin-token": token },
+      headers: {"x-admin-token": token},
       cache: "no-store",
     });
     if (!res.ok) {
-      const body = await res.json().catch(() => ({ error: "Error desconocido." }));
+      const body = await res.json().catch(() => ({error: "Error desconocido."}));
       throw new Error(body.error ?? "No se pudieron cargar los insumos.");
     }
     const next = (await res.json()) as AdminHospitalSupplyData;
@@ -233,7 +233,7 @@ export default function HospitalSuppliesPanel({ token, query }: Props) {
     try {
       await postJson(
         `/api/hospitals/${need.hospitalId}/supplies/needs/${need.id}`,
-        { status, updatedBy: "panel_admin", source: "admin_panel" },
+        {status, updatedBy: "panel_admin", source: "admin_panel"},
         "PATCH",
       );
       await load();
@@ -253,7 +253,7 @@ export default function HospitalSuppliesPanel({ token, query }: Props) {
         requestedBy: "poc_hospitalario",
         source: "admin_panel",
       });
-      setHelpForm((prev) => ({ ...prev, message: "", restrictedNote: "" }));
+      setHelpForm((prev) => ({...prev, message: "", restrictedNote: ""}));
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo crear solicitud.");
@@ -270,7 +270,7 @@ export default function HospitalSuppliesPanel({ token, query }: Props) {
     try {
       await postJson(
         `/api/hospitals/${request.hospitalId}/supplies/help/${request.id}`,
-        { status, requestedBy: "panel_admin", source: "admin_panel" },
+        {status, requestedBy: "panel_admin", source: "admin_panel"},
         "PATCH",
       );
       await load();
@@ -328,11 +328,10 @@ export default function HospitalSuppliesPanel({ token, query }: Props) {
                     <button
                       type="button"
                       onClick={() => setSelectedHospitalId(row.hospital.id)}
-                      className={`block w-full p-3 text-left transition hover:bg-slate-50 ${
-                        selectedRow?.hospital.id === row.hospital.id
+                      className={`block w-full p-3 text-left transition hover:bg-slate-50 ${selectedRow?.hospital.id === row.hospital.id
                           ? "bg-blue-50/80"
                           : "bg-white"
-                      }`}
+                        }`}
                     >
                       <p className="text-sm font-bold text-slate-900">
                         {row.hospital.name}
@@ -360,8 +359,8 @@ export default function HospitalSuppliesPanel({ token, query }: Props) {
                         {row.supply.helpRequests.some((h) =>
                           isOpenHospitalSupplyHelpStatus(h.status),
                         ) && (
-                          <MiniBadge color="#9333ea">ayuda</MiniBadge>
-                        )}
+                            <MiniBadge color="#9333ea">ayuda</MiniBadge>
+                          )}
                       </div>
                     </button>
                   </li>
@@ -409,8 +408,8 @@ export default function HospitalSuppliesPanel({ token, query }: Props) {
                     active={selectedCategory === category}
                     onSelect={() => {
                       setSelectedCategory(category);
-                      setNeedForm((prev) => ({ ...prev, category }));
-                      setHelpForm((prev) => ({ ...prev, category }));
+                      setNeedForm((prev) => ({...prev, category}));
+                      setHelpForm((prev) => ({...prev, category}));
                     }}
                   />
                 ))}
@@ -452,7 +451,7 @@ export default function HospitalSuppliesPanel({ token, query }: Props) {
                       onClick={() => updateStatus(status)}
                       disabled={saving !== null}
                       className="min-h-12 rounded-xl px-3 py-2 text-sm font-bold text-white shadow-sm disabled:opacity-50"
-                      style={{ background: HOSPITAL_SUPPLY_STATUS_META[status].color }}
+                      style={{background: HOSPITAL_SUPPLY_STATUS_META[status].color}}
                     >
                       {HOSPITAL_SUPPLY_STATUS_META[status].label}
                     </button>
@@ -470,7 +469,7 @@ export default function HospitalSuppliesPanel({ token, query }: Props) {
                   <SupplyCategorySelect
                     value={needForm.category}
                     onChange={(category) =>
-                      setNeedForm((prev) => ({ ...prev, category }))
+                      setNeedForm((prev) => ({...prev, category}))
                     }
                   />
                   <input
@@ -500,7 +499,7 @@ export default function HospitalSuppliesPanel({ token, query }: Props) {
                     <input
                       value={needForm.unit}
                       onChange={(event) =>
-                        setNeedForm((prev) => ({ ...prev, unit: event.target.value }))
+                        setNeedForm((prev) => ({...prev, unit: event.target.value}))
                       }
                       placeholder="Unidad"
                       className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-red-400"
@@ -565,7 +564,7 @@ export default function HospitalSuppliesPanel({ token, query }: Props) {
                   <SupplyCategorySelect
                     value={helpForm.category}
                     onChange={(category) =>
-                      setHelpForm((prev) => ({ ...prev, category }))
+                      setHelpForm((prev) => ({...prev, category}))
                     }
                   />
                   <select
@@ -770,7 +769,7 @@ function SupplyMetric({
       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-1 text-2xl font-black" style={{ color: accent ?? "#0f172a" }}>
+      <p className="mt-1 text-2xl font-black" style={{color: accent ?? "#0f172a"}}>
         {value.toLocaleString("es-VE")}
       </p>
     </div>
@@ -787,7 +786,7 @@ function MiniBadge({
   return (
     <span
       className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white"
-      style={{ background: color }}
+      style={{background: color}}
     >
       {children}
     </span>
@@ -811,15 +810,14 @@ function CategoryStatusCard({
     <button
       type="button"
       onClick={onSelect}
-      className={`rounded-xl border p-3 text-left transition hover:border-slate-300 ${
-        active ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white"
-      }`}
+      className={`rounded-xl border p-3 text-left transition hover:border-slate-300 ${active ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white"
+        }`}
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-bold text-slate-900">{categoryMeta.label}</p>
         <span
           className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white"
-          style={{ background: statusMeta.color }}
+          style={{background: statusMeta.color}}
         >
           {statusMeta.label}
         </span>
