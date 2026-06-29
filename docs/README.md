@@ -94,6 +94,7 @@ acción.
 - [0004 — Escrituras atómicas con CTE](adr/0004-escrituras-atomicas-cte.md) · _aceptada_
 - [0005 — Endurecimiento de la superficie HTTP ante el pico mediático](adr/0005-endurecimiento-superficie-http.md) · _aceptada_
 - [0006 — Estrategia de búsqueda (trigram + mínimo, conteo acotado y caché)](adr/0006-estrategia-de-busqueda.md) · _aceptada_
+- [0007 — Shell del panel admin con dos sidebars y rutas híbridas](adr/0007-shell-admin-dos-sidebars.md) · _aceptada_
 
 ### Base de datos
 

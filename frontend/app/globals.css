@@ -2358,6 +2358,47 @@ summary {
 	animation-play-state: paused;
 }
 
+/* Admin shell (ADR 0007): en desktop las sidebars ocupan el alto disponible bajo
+   el header; solo el main (y cada sidebar si crece) hace scroll interno. */
+:root {
+	--admin-flag-bar: 5px;
+}
+
+.admin-shell {
+	min-height: calc(100dvh - var(--admin-flag-bar));
+}
+
+@media (min-width: 1024px) {
+	.admin-shell {
+		display: grid;
+		grid-template-rows: auto 1fr;
+		height: calc(100dvh - var(--admin-flag-bar));
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	.admin-shell__body {
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	.admin-shell__nav,
+	.admin-shell__integrations {
+		min-height: 0;
+		overflow-y: auto;
+	}
+
+	.admin-shell__main {
+		min-height: 0;
+		overflow-y: auto;
+	}
+}
+
+.admin-shell__nav-drawer,
+.admin-shell__integrations-drawer {
+	overflow-y: auto;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	*,
 	*::before,

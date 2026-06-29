@@ -64,3 +64,6 @@ Emergencia nacional de búsqueda.zip
 .claude/commands/*
 upload-github-secrets.sh
 node_modules/
+
+# planning local (issues desglosadas, no publicar en GitHub)
+/local/
