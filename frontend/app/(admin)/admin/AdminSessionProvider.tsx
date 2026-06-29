@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import {apiFetch} from "@/lib/api";
 import {ADMIN_STORAGE_KEY} from "@/lib/admin-auth";
 import {deriveAdminLiveCounts} from "@/lib/admin-live-counts";
 import type {AdminLiveCounts} from "@/lib/admin-nav";
@@ -117,7 +118,7 @@ async function fetchWithAdminToken<T>(
   url: string,
   token: string,
 ): Promise<{ok: true; data: T} | {ok: false; status: number}> {
-  const res = await fetch(url, {
+  const res = await apiFetch(url, {
     headers: {"x-admin-token": token},
     cache: "no-store",
   });
@@ -213,7 +214,7 @@ export function AdminSessionProvider({children}: {children: ReactNode}) {
 
   const fetchHubStats = useCallback(async () => {
     try {
-      const res = await fetch("/api/hub/stats", {cache: "no-store"});
+      const res = await apiFetch("/api/hub/stats", {cache: "no-store"});
       if (!res.ok) return;
       setHubStats((await res.json()) as HubStats);
     } catch {
@@ -230,7 +231,7 @@ export function AdminSessionProvider({children}: {children: ReactNode}) {
     if (!current || syncing) return;
     setSyncing(true);
     try {
-      await fetch("/api/sync/run?mode=chunk", {
+      await apiFetch("/api/sync/run?mode=chunk", {
         method: "POST",
         headers: {"x-admin-token": current},
       });
@@ -247,7 +248,7 @@ export function AdminSessionProvider({children}: {children: ReactNode}) {
     if (!current) return;
     if (!window.confirm(SYNC_RESET_CONFIRM_MESSAGE)) return;
     try {
-      await fetch("/api/sync/reset", {
+      await apiFetch("/api/sync/reset", {
         method: "POST",
         headers: {"x-admin-token": current},
       });
@@ -269,7 +270,7 @@ export function AdminSessionProvider({children}: {children: ReactNode}) {
         return {...prev, ...applyPersonRemoval(prev, id)};
       });
 
-      await fetch(moderationDeletePath(kind, id), {
+      await apiFetch(moderationDeletePath(kind, id), {
         method: "DELETE",
         headers: {"x-admin-token": current},
       }).catch(() => { });
@@ -296,7 +297,7 @@ export function AdminSessionProvider({children}: {children: ReactNode}) {
     async (id: string) => {
       const current = sessionStorage.getItem(ADMIN_STORAGE_KEY);
       if (!current) return;
-      await fetch(`/api/missing/${id}/restore`, {
+      await apiFetch(`/api/missing/${id}/restore`, {
         method: "POST",
         headers: {"x-admin-token": current},
       }).catch(() => null);
@@ -314,7 +315,7 @@ export function AdminSessionProvider({children}: {children: ReactNode}) {
       return applyContactRead(prev, id);
     });
 
-    await fetch("/api/admin/contact", {
+    await apiFetch("/api/admin/contact", {
       method: "PATCH",
       headers: {
         "x-admin-token": current,
@@ -330,7 +331,7 @@ export function AdminSessionProvider({children}: {children: ReactNode}) {
     try {
       // El reporte ya no corre inline (audit M-2): se encola y se hace
       // status-poll hasta que termina (patrón Hermes/boahaus 202 + poll).
-      const enq = await fetch("/api/sync/duplicates?limit=50", {
+      const enq = await apiFetch("/api/sync/duplicates?limit=50", {
         method: "POST",
         headers: {"x-admin-token": current},
         cache: "no-store",
@@ -342,7 +343,7 @@ export function AdminSessionProvider({children}: {children: ReactNode}) {
       const deadline = Date.now() + 90_000;
       while (Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 1500));
-        const sres = await fetch(
+        const sres = await apiFetch(
           `/api/sync/status?jobId=${encodeURIComponent(jobId)}`,
           {headers: {"x-admin-token": current}, cache: "no-store"},
         );

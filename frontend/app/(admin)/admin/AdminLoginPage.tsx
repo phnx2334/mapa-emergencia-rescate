@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {useState} from "react";
+import {apiFetch} from "@/lib/api";
 import {resolvePostLoginPath} from "@/lib/admin-auth";
 import {useAdminSession} from "./AdminSessionProvider";
 
@@ -20,7 +21,7 @@ export default function AdminLoginPage({returnTo}: AdminLoginPageProps) {
     setError(null);
     setSubmitting(true);
     try {
-      const res = await fetch("/api/admin/login", {
+      const res = await apiFetch("/api/admin/login", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({password}),
