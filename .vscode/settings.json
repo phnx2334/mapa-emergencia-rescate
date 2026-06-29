@@ -1,0 +1,10 @@
+{
+  // El repo no usa Prettier ni format-on-save: el estilo es manual y un
+  // formateador al guardar genera diffs grandes (~77% del frontend).
+  // ESLint solo cuando lo pidas explícitamente (no en cada save).
+  "editor.formatOnSave": false,
+  "eslint.format.enable": false,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  }
+}
