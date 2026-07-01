@@ -26,6 +26,7 @@ const STATIC_PATHS = [
   { path: "/privacidad", changeFrequency: "yearly" as const, priority: 0.3 },
   { path: "/terminos", changeFrequency: "yearly" as const, priority: 0.3 },
   { path: "/contacto", changeFrequency: "monthly" as const, priority: 0.5 },
+  { path: "/quienes-somos", changeFrequency: "monthly" as const, priority: 0.5 },
   { path: "/donaciones", changeFrequency: "monthly" as const, priority: 0.6 },
   { path: "/voluntario", changeFrequency: "monthly" as const, priority: 0.6 },
   { path: "/apoyo-disponible", changeFrequency: "weekly" as const, priority: 0.7 },
@@ -59,7 +60,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const hospitals = await listHospitalsWithTimeout();
     hospitalEntries = hospitals.map((hospital) => ({
       url: `${SITE_URL}/hospitales/${buildHospitalSlug(hospital)}`,
-      lastModified,
+      // Fecha real de alta del hospital en vez de la fecha de build compartida:
+      // señal de frescura más precisa por entidad. No es "última edición" (el
+      // backend aún no expone updatedAt para hospitales) — sigue siendo un
+      // proxy, no una fecha de modificación exacta.
+      lastModified: hospital.createdAt ? new Date(hospital.createdAt) : lastModified,
       changeFrequency: "daily",
       priority: 0.6,
     }));

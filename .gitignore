@@ -73,3 +73,6 @@ node_modules/
 
 # planning local (issues desglosadas, no publicar en GitHub)
 /local/
+# artefactos de agent workspace (no son parte del proyecto)
+.cursor/
+.scope.json
