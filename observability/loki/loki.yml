@@ -1,0 +1,63 @@
+# Loki del command center — RECEPTOR de logs empujados por Alloy desde k3s.
+# Single-binary, filesystem store (suficiente para pocos usuarios). Adaptado del
+# loki.yml de boahaus, con límites de ingesta y retención acotados al VPS chico.
+
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9095
+
+common:
+  ring:
+    kvstore:
+      store: inmemory
+    instance_addr: 127.0.0.1
+  replication_factor: 1
+  path_prefix: /loki/data
+
+schema_config:
+  configs:
+    - from: "2024-01-01"
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+storage_config:
+  filesystem:
+    directory: /loki/chunks
+
+# Límites: protegen el disco/RAM del VPS compartido. Retención 15d (igual que
+# Prometheus) y topes de ingesta para que un pico de logs no llene el disco.
+limits_config:
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  retention_period: 360h # 15 días
+  ingestion_rate_mb: 8
+  ingestion_burst_size_mb: 16
+  max_streams_per_user: 5000
+  max_label_names_per_series: 30
+  # Evita explosión de cardinalidad por etiquetas dinámicas (p.ej. ids/IPs).
+  max_global_streams_per_user: 5000
+  # max_query_series: tope de series que una query métrica puede materializar.
+  # El default (500) lo rompe el panel "top IPs": `sum by (ip)` genera una serie
+  # POR IP única en la ventana, y bajo tráfico real hay >500 IPs distintas →
+  # "maximum of series (500) reached" y No data. topk() NO ayuda (evalúa por
+  # intervalo, no recorta antes del límite). Subimos a 10000 para que el group-by
+  # por IP quepa; el topk del panel ya limita lo que se muestra.
+  max_query_series: 10000
+
+compactor:
+  working_directory: /loki/compactor
+  retention_enabled: true
+  # Loki 3 exige declarar dónde guardar las delete requests cuando hay retención.
+  # Usamos el mismo backend de los chunks (filesystem).
+  delete_request_store: filesystem
+  delete_request_cancel_period: 10m
+  compaction_interval: 10m
+
+# Nota: en Loki 3 (TSDB) la retención la hace el compactor (arriba); ya no se usa
+# table_manager.

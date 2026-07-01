@@ -12,8 +12,10 @@
 # Zero-downtime (ambos tiers):
 #   - maxUnavailable:0 / maxSurge:1 -> el pod nuevo debe estar Ready ANTES de
 #     quitar uno viejo. Siempre >=1 sirviendo.
-#   - readiness: el BACKEND prueba /api/readyz (chequea DB). El FRONTEND no tiene
-#     /api/readyz (es pura UI) -> probe TCP al :3000 (server.js arriba = listo).
+#   - readiness: el BACKEND prueba /api/readyz (chequea DB); liveness usa
+#     /api/healthz (solo proceso vivo, sin I/O) para que un blip de DB drene en
+#     vez de reiniciar el pod. El FRONTEND no tiene /api/readyz (es pura UI) ->
+#     probe TCP al :3000 (server.js arriba = listo).
 #   - cluster-autoscaler (infra/k8s/cluster-autoscaler.yaml) arranca VPS efímeros cuando
 #     los pods nuevos no caben, y destruye los viejos al drenar (graceful).
 #
@@ -126,6 +128,13 @@ spec:
       labels:
         app: mapa
         tier: api
+      annotations:
+        # Descubrimiento de scrape para Grafana Alloy (DaemonSet). Alloy lee estas
+        # annotations y scrapea el puerto de métricas aislado (9090), NO el :8080
+        # público. Ver infra/k8s/alloy.yaml.
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: /metrics
     spec:
       imagePullSecrets:
         - name: ghcr-pull
@@ -146,6 +155,11 @@ spec:
           image: ghcr.io/OWNER/REPO-backend:latest
           ports:
             - containerPort: 8080
+            # Puerto de MÉTRICAS, aislado: el Service/LB NO lo publica (no está en
+            # service.yaml), así /metrics nunca sale a internet. Solo Alloy lo
+            # scrapea pod-a-pod (ver annotations prometheus.io/* abajo).
+            - name: metrics
+              containerPort: 9090
           envFrom:
             - secretRef:
                 name: app-env
@@ -153,9 +167,35 @@ spec:
             # La API no hace render React, así que necesita menos heap que web.
             - name: NODE_OPTIONS
               value: "--max-old-space-size=512"
+            # --- PgBouncer (ADR 0007) ---
+            # SOLO el tier API se enruta por el pooler. Este DATABASE_URL explícito
+            # GANA sobre el de app-env (envFrom de arriba). Se compone con las
+            # credenciales del secret pgbouncer-auth + el Service del pooler. Los
+            # carve-outs (migrate Job, migrate-worker, hub-credentials) NO definen
+            # este override, así que siguen usando el DATABASE_URL directo de app-env.
+            #
+            # IMPORTANTE: si el secret pgbouncer-auth no existe, este pod NO arranca
+            # (env con secretKeyRef faltante = CreateContainerConfigError). El deploy
+            # crea pgbouncer-auth antes de rodar; en clústeres sin pooler, quita este
+            # bloque o crea el secret. Rollback del pooler = borrar este bloque env.
+            - name: DB_USER_PB
+              valueFrom:
+                secretKeyRef:
+                  name: pgbouncer-auth
+                  key: DB_USER
+            - name: DB_PASSWORD_PB
+              valueFrom:
+                secretKeyRef:
+                  name: pgbouncer-auth
+                  key: DB_PASSWORD
+            - name: DATABASE_URL
+              value: "postgres://$(DB_USER_PB):$(DB_PASSWORD_PB)@pgbouncer.mapa.svc.cluster.local:6432/app"
+          # liveness = solo proceso vivo (sin I/O): un fallo reinicia el pod, así
+          # que NO debe depender de la DB. readiness = chequea DB: un fallo saca
+          # el pod de rotación pero no lo reinicia (un blip de DB drena, no loopea).
           livenessProbe:
             httpGet:
-              path: /api/readyz
+              path: /api/healthz
               port: 8080
             initialDelaySeconds: 10
             periodSeconds: 20
@@ -173,6 +213,100 @@ spec:
           resources:
             requests:
               cpu: "250m"
+              memory: "384Mi"
+            limits:
+              memory: "640Mi"
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 5"]
+---
+# admin : PANEL ADMIN (Next standalone, microservicio aparte del sitio público).
+# Lo usan rescatistas/coordinadores. Habla con el backend SOLO server-side (su
+# BFF) por la red interna del clúster; el navegador llama same-origin al BFF.
+# Réplicas bajas (no es tráfico público masivo). CI parchea el tag a -admin:<sha>.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin
+  namespace: mapa
+  labels:
+    app: mapa
+    tier: admin
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: mapa
+      tier: admin
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: mapa
+        tier: admin
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: mapa
+                    tier: admin
+                topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 40
+      containers:
+        # PANEL ADMIN (Next standalone). CI parchea el tag a -admin:<sha>.
+        - name: app
+          image: ghcr.io/OWNER/REPO-admin:latest
+          ports:
+            - containerPort: 3000
+          # SIN envFrom app-env a propósito (least-privilege): el panel NO usa la
+          # DB/Valkey/Turnstile ni ADMIN_PASSWORD — solo habla con el backend por
+          # su BFF. Inyectar esos secretos aquí ampliaría el blast-radius sin
+          # razón. Todo lo que el admin lee va EXPLÍCITO abajo. PORT/HOSTNAME/
+          # NODE_ENV los fija el Dockerfile.
+          env:
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=512"
+            # El BFF del admin llama al backend por la red interna del clúster.
+            - name: EMERGENCY_API_URL
+              value: "http://api.mapa.svc.cluster.local"
+            # Prod = HTTPS: la cookie de sesión va Secure.
+            - name: COOKIE_SECURE
+              value: "true"
+            - name: SESSION_MAX_AGE_SECONDS
+              value: "43200"
+          # El admin SÍ tiene /api/health (BFF) desacoplado de upstreams.
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "200m"
               memory: "384Mi"
             limits:
               memory: "640Mi"

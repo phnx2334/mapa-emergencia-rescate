@@ -54,6 +54,15 @@ const schema = z.object({
   // sin TURNSTILE_SECRET_KEY el middleware requireHuman se desactiva (dev local).
   TURNSTILE_SECRET_KEY: z.string().optional(),
 
+  // Bearer token que protege GET /metrics (Prometheus). OPCIONAL: sin él el
+  // endpoint queda abierto (dev local). Defensa en profundidad: la defensa
+  // PRIMARIA es que /metrics vive en METRICS_PORT, que el LB público NO enruta.
+  METRICS_TOKEN: z.string().optional(),
+  // Puerto del servidor de métricas separado (aislado del LB público). El api
+  // tier expone este containerPort para que Alloy lo scrapee, pero el Service NO
+  // lo publica. Default 9090.
+  METRICS_PORT: z.coerce.number().default(9090),
+
   // CORS: orígenes permitidos del frontend (coma-separados). En dev, localhost.
   CORS_ORIGINS: z.string().default("http://localhost:3000"),
 
@@ -62,9 +71,41 @@ const schema = z.object({
   QUEUE_REMOVE_ON_COMPLETE: z.coerce.number().default(1000),
   QUEUE_REMOVE_ON_FAIL: z.coerce.number().default(5000),
 
+  // R2 (fotos/CDN): el helper lib/r2.ts lee process.env directo; aquí solo
+  // documentamos el prefijo de namespace. Vacío en prod (keys `images/...`);
+  // en staging = "staging" para aislar fotos en el MISMO bucket sin pisar prod.
+  R2_KEY_PREFIX: z.string().default(""),
+
   // Proxy de analítica OpenPanel (route op/[...op]). Opcionales.
   OPENPANEL_API_URL: z.string().default("https://api.openpanel.dev"),
   OPENPANEL_CLIENT_SECRET: z.string().optional(),
+
+  // ResponseGrid: API externa de centros de acopio (logística humanitaria). El
+  // backend la PROXEA en /api/acopio (cache + rate-limit + ETag); el navegador
+  // NUNCA la llama directo (no expone CORS para nuestro origen). Defaults sanos:
+  // apuntan a la API pública y a la emergencia del terremoto de Venezuela.
+  RESPONSEGRID_API_URL: z.string().default("https://api.responsegrid.app"),
+  RESPONSEGRID_EMERGENCY_SLUG: z.string().default("terremoto-venezuela-2026"),
+  // api-key de service account de ResponseGrid para PUBLICAR (escritura:
+  // necesidades, /api/needs). Se envía como cabecera `x-api-key` junto al campo
+  // `author` (atribución a la persona real). Las lecturas (acopio) no la necesitan.
+  // Ausente => publicar queda deshabilitado y el endpoint responde 503.
+  RESPONSEGRID_API_KEY: z.string().optional(),
+
+  // --- Réplica pública (hub SQL, RFC 0006). Todo OPCIONAL: si falta, la gestión
+  // de la réplica queda desactivada (el endpoint responde 503), igual que
+  // Turnstile sin secret en dev. Se setean cuando el hub está provisto (tofu). ---
+  // Conexión del rol CREATEROLE del backend hacia el hub (red privada). Es la
+  // que crea/borra roles de consumidor. Output tofu `hub_admin_url`.
+  HUB_ADMIN_DATABASE_URL: z.string().optional(),
+  // Host PÚBLICO del hub que se entrega al consumidor en la cadena de conexión.
+  HUB_PUBLIC_HOST: z.string().optional(),
+  HUB_DB_NAME: z.string().default("public_db"),
+  // Token Hetzner con permiso de escribir firewalls (idealmente scoped). Se usa
+  // para abrir/cerrar la IP del consumidor en mapa-hub-fw.
+  HCLOUD_TOKEN: z.string().optional(),
+  // id (numérico) del firewall mapa-hub-fw a editar. Output del firewall en HCloud.
+  HUB_FIREWALL_ID: z.coerce.number().optional(),
 });
 
 const parsed = schema.safeParse(process.env);

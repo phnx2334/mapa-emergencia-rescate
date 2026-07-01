@@ -82,9 +82,13 @@ acción.
 - [0002 — Federación con el hub central (ingesta async)](rfcs/0002-federacion-hub-venezuela-ayuda.md)
   · _propuesta_ · integración con el hub "Venezuela Ayuda".
 - [0003 — Refactor async: request-path no bloqueante + colas](rfcs/0003-refactor-async-http-y-colas.md)
-  · _propuesta_.
+  · _implementada_ (PR #108).
 - [0004 — Nodos efímeros (cluster-autoscaler) + split web/api](rfcs/0004-autoscaling-y-split-web-api.md)
   · _propuesta_.
+- [0005 — Panel admin standalone (3er tier)](rfcs/0005-panel-admin-standalone.md)
+  · _implementado_.
+- [0006 — Hub de datos públicos: réplica saneada con SQL crudo y API](rfcs/0006-hub-replica-sql-publico.md)
+  · _propuesta_ · réplica lógica + TCP/TLS para consumidores externos.
 
 ### ADRs
 
@@ -94,11 +98,16 @@ acción.
 - [0004 — Escrituras atómicas con CTE](adr/0004-escrituras-atomicas-cte.md) · _aceptada_
 - [0005 — Endurecimiento de la superficie HTTP ante el pico mediático](adr/0005-endurecimiento-superficie-http.md) · _aceptada_
 - [0006 — Estrategia de búsqueda (trigram + mínimo, conteo acotado y caché)](adr/0006-estrategia-de-busqueda.md) · _aceptada_
-- [0007 — Shell del panel admin con dos sidebars y rutas híbridas](adr/0007-shell-admin-dos-sidebars.md) · _aceptada_
+- [0007 — Pooler de conexiones a Postgres: PgBouncer cuando haga falta](adr/0007-pooler-de-conexiones-postgres.md) · _aceptada_
+- [0008 — Shell del panel admin con dos sidebars y rutas híbridas](adr/0008-shell-admin-dos-sidebars.md) · _aceptada_
 
 ### Base de datos
 
 - [Modelo de datos (esquema + relaciones + diagrama)](db/modelo-de-datos.md)
+
+### Diseño
+
+- [Sistema visual y tokens de diseño](design/DESIGN.md)
 
 ### Arquitectura
 
@@ -112,6 +121,8 @@ acción.
 - [Dominio, DNS y TLS](deploy/dominio-y-dns.md)
 - [Migraciones de base de datos (Drizzle)](deploy/migraciones-de-base-de-datos.md)
 - [Estructura de la infraestructura](deploy/estructura-infra.md)
+- [Réplica pública (hub SQL) — runbook](deploy/replica-publica-hub.md)
+- [Ramas, ruleset y promoción (staging → main)](deploy/ramas-y-promocion.md)
 
 ### Infraestructura e integraciones
 
@@ -128,7 +139,8 @@ acción.
 
 ### Guías
 
-- [Desplegar la sincronización con Vercel Cron](guides/sincronizacion-cron-vercel.md)
+- [Disparar la sincronización (scheduler del worker)](guides/sincronizacion-cron-vercel.md)
 - [Rendimiento, capacidad y pruebas de carga](guides/rendimiento-y-pruebas-de-carga.md)
 - [Documentar endpoints (OpenAPI / Swagger)](guides/documentar-endpoints-openapi.md)
+- [Plan: adoptar PgBouncer (pooler de conexiones)](guides/plan-pgbouncer.md)
 </content>

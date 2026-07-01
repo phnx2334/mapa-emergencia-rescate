@@ -36,7 +36,7 @@ plataforma confiable.
 Usa este flujo si no eres maintainer con permiso de escritura en el repo
 principal.
 
-1. Haz fork de `ArturoRiosMock/mapa-emergencia-rescate` en GitHub.
+1. Haz fork de `terremotovenezuela/mapa-emergencia-rescate` en GitHub.
 2. Clona tu fork:
 
    ```bash
@@ -47,38 +47,48 @@ principal.
 3. Agrega el repo original como `upstream`:
 
    ```bash
-   git remote add upstream https://github.com/ArturoRiosMock/mapa-emergencia-rescate.git
+   git remote add upstream https://github.com/terremotovenezuela/mapa-emergencia-rescate.git
    git fetch upstream
    ```
 
-4. Crea una rama desde `upstream/main`:
+4. Crea una rama desde `upstream/staging` (NO desde `main`):
 
    ```bash
-   git switch -c fix/descripcion-corta upstream/main
+   git switch -c fix/descripcion-corta upstream/staging
    ```
 
-5. Instala dependencias y corre la app:
+   > El trabajo se integra primero en `staging` y de ahí se promociona a `main`.
+   > A `main` solo se llega por un PR **desde** `staging` (lo verifica un check de
+   > CI). Ver [docs/deploy/ramas-y-promocion.md](docs/deploy/ramas-y-promocion.md).
+
+5. Corre la app. Docker Compose es la vía preferida y levanta el stack completo
+   (frontend + admin + backend + Postgres + Valkey) sin instalar dependencias a
+   mano:
 
    ```bash
-   npm install
-   npm run dev
+   docker compose up --build
    ```
+
+   Para el detalle del entorno local y la tabla de puertos, mira el
+   [`README.md`](README.md).
 
 6. Haz cambios pequeños y enfocados. Si el alcance crece, abre una issue nueva o
    separa otro PR.
-7. Valida antes de subir:
+7. Valida antes de subir, en cada paquete que tocaste:
 
    ```bash
-   npm run lint
-   npm run build
+   cd frontend && npm run lint && npm run typecheck && npm run build
+   cd backend  && npm run lint && npm run typecheck && npm run build
+   cd admin    && npm run lint && npm run typecheck && npm run build
    ```
 
-8. Sube tu rama y abre un PR contra
-   `ArturoRiosMock/mapa-emergencia-rescate:main`.
+8. Sube tu rama y abre un PR contra la rama **`staging`** del repo principal
+   (`terremotovenezuela/mapa-emergencia-rescate:staging`), NO contra `main`.
 
 Si eres maintainer, puedes crear una rama en el repo principal, pero conserva la
-misma disciplina: rama desde `main`, PR pequeño, issue enlazada y validación
-clara.
+misma disciplina: rama desde `staging`, PR pequeño contra `staging`, issue
+enlazada y validación clara. La promoción `staging` → `main` (que despliega a
+prod) la hace un maintainer con un PR aparte.
 
 ## Crear issues útiles
 
@@ -119,7 +129,7 @@ Manten el PR revisable:
 - Prefiere cambios pequeños a un PR grande con muchas responsabilidades.
 - No mezcles refactors estéticos con fixes funcionales.
 - No subas credenciales, `.env.local`, dumps o datos reales.
-- Rebasea o actualiza tu rama si `main` cambió mucho antes de mergear.
+- Rebasea o actualiza tu rama si `staging` cambió mucho antes de mergear.
 - Responde comentarios con commits nuevos; evita resolver conversaciones sin
   explicar el cambio.
 
@@ -128,27 +138,34 @@ Manten el PR revisable:
 - TypeScript estricto, sin `as any` salvo justificacion clara.
 - Validaciones del lado servidor para entradas públicas.
 - Mensajes de error visibles cuando una escritura falla.
-- Helpers compartidos en `lib/` antes de duplicar lógica.
+- Helpers compartidos en `frontend/lib/`, `backend/src/lib/` o
+  `backend/src/middleware/` antes de duplicar lógica.
 - UI accesible en movil y escritorio.
 - Variables de entorno nuevas documentadas en `.env.example`.
 
 ## Crear endpoints de API (OBLIGATORIO)
 
-Todo route en `app/api/**` debe seguir el patrón del repo. `npm run endpoints:check`
-corre en cada build y en CI; **rompe el build** si no se cumple. Reglas duras:
+La API vive en el backend Express (`backend/src/routes/` para el sitio público +
+admin, `backend/src/public-api/` para la superficie autenticada por capacidades).
+Las reglas se **enforcan con ESLint** (`backend/eslint-rules/`, corren en
+`npm run lint` + CI); romperlas falla el PR. Reglas duras:
 
-- Handler **`async`** (`export async function GET|POST|...`), nunca síncrono.
-- **Sin `maxDuration` ni I/O largo de terceros inline**: ese trabajo se ENCOLA en
-  BullMQ y el handler responde `202 {jobId}` (status-poll en `/api/sync/status`).
-- **Sin llamadas síncronas bloqueantes** (`readFileSync`, `execSync`, …).
-- Bloque **`@swagger`** sobre el primer handler (la doc se autogenera).
+- **`require-rate-limit`**: TODA ruta declara `rateLimit({ scope, limit })`.
+- **`user-facing-mutation-needs-guard`**: toda mutación de `src/routes/*` lleva
+  `requireHuman` (Turnstile) o un gate (`requireAdmin` / `requireCapability` /
+  `requireCron` / `requireSupplyWrite`). La excepción anónima se documenta con
+  `// eslint-disable-next-line local/user-facing-mutation-needs-guard -- razón`.
+- **`no-turnstile-in-public-api`**: `src/public-api/*` no usa Turnstile.
+- **Sin I/O largo de terceros inline**: ese trabajo se ENCOLA en BullMQ y el
+  handler responde `202 {jobId}` (status-poll en `/api/sync/status`).
+- Bloque **`@swagger`** sobre el primer handler de los routes a mano (los routers
+  de la fábrica CRUD auto-documentan desde su esquema zod).
 
-Recomendado (avisos, excepción con `// endpoint-check: ok`): lecturas en paralelo
-(`Promise.all`), GET público con `cached()` + `jsonWithEtag()`, mutaciones con
-auth o `checkRateLimit`, IP siempre hasheada (`hashIp`), nunca serializar el
-objeto completo a respuestas públicas.
+Recomendado: lecturas en paralelo (`Promise.all`), GET público con `cached()` +
+`jsonWithEtag()`, IP siempre hasheada (`hashIp`), nunca serializar el objeto
+completo a respuestas públicas.
 
-Detalle completo y ejemplos: `AGENTS.md` ("Crear un endpoint") y
+Detalle completo y ejemplos: `AGENTS.md` ("Endpoints del backend") y
 `docs/guides/documentar-endpoints-openapi.md`.
 
 ## Estilo de documentación

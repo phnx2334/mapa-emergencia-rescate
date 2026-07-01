@@ -5,7 +5,6 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 import PwaRegister from "@/components/layout/PwaRegister";
 import MourningRibbon from "@/components/layout/MourningRibbon";
-import StickyHelpButton from "@/components/layout/StickyHelpButton";
 import OpenPanelProduction from "@/components/layout/OpenPanelProduction";
 import ThemeProvider from "@/components/layout/ThemeProvider";
 import QueryProvider from "@/components/layout/QueryProvider";
@@ -14,42 +13,42 @@ import { SITE_URL } from "@/lib/site";
 const stara = localFont({
   src: [
     {
-      path: "./fonts/stara/Stara-Medium.otf",
+      path: "./fonts/stara/Stara-Medium.woff2",
       weight: "500",
       style: "normal",
     },
     {
-      path: "./fonts/stara/Stara-MediumItalic.otf",
+      path: "./fonts/stara/Stara-MediumItalic.woff2",
       weight: "500",
       style: "italic",
     },
     {
-      path: "./fonts/stara/Stara-SemiBold.otf",
+      path: "./fonts/stara/Stara-SemiBold.woff2",
       weight: "600",
       style: "normal",
     },
     {
-      path: "./fonts/stara/Stara-SemiBoldItalic.otf",
+      path: "./fonts/stara/Stara-SemiBoldItalic.woff2",
       weight: "600",
       style: "italic",
     },
     {
-      path: "./fonts/stara/Stara-Bold.otf",
+      path: "./fonts/stara/Stara-Bold.woff2",
       weight: "700",
       style: "normal",
     },
     {
-      path: "./fonts/stara/Stara-BoldItalic.otf",
+      path: "./fonts/stara/Stara-BoldItalic.woff2",
       weight: "700",
       style: "italic",
     },
     {
-      path: "./fonts/stara/Stara-ExtraBold.otf",
+      path: "./fonts/stara/Stara-ExtraBold.woff2",
       weight: "800",
       style: "normal",
     },
     {
-      path: "./fonts/stara/Stara-Black.otf",
+      path: "./fonts/stara/Stara-Black.woff2",
       weight: "900",
       style: "normal",
     },
@@ -68,6 +67,21 @@ const SITE_TITLE = "Mapa de Emergencia y Rescate · Terremoto en Venezuela";
 const SITE_DESC =
   "Reporte ciudadano en tiempo real para coordinar rescates, identificar daños estructurales y organizar la entrega de ayuda humanitaria tras el terremoto en Venezuela.";
 const OPENPANEL_CLIENT_ID = process.env.NEXT_PUBLIC_OPENPANEL_CLIENT_ID;
+
+// Orígenes cross-origin que el navegador SIEMPRE golpea: el backend (datos de
+// emergencia, vía fetch con credenciales) y el CDN R2 (fotos). Preconectar
+// adelanta DNS+TCP+TLS para que el primer request no pague el handshake. Solo el
+// origin (esquema+host), no la ruta. Guardado por si el env viene vacío/inválido.
+function safeOrigin(raw: string | undefined): string | null {
+  if (!raw) return null;
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return null;
+  }
+}
+const API_ORIGIN = safeOrigin(process.env.NEXT_PUBLIC_API_URL);
+const R2_ORIGIN = safeOrigin(process.env.NEXT_PUBLIC_R2_PUBLIC_BASE);
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -156,6 +170,20 @@ export default function RootLayout({
       className={`${stara.variable} ${spaceGrotesk.variable} h-full overflow-x-hidden antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        {/* Preconexión a los orígenes cross-origin críticos. El backend va con
+            credenciales (cookies) → use-credentials; el CDN R2 es anónimo. */}
+        {API_ORIGIN && (
+          <link
+            rel="preconnect"
+            href={API_ORIGIN}
+            crossOrigin="use-credentials"
+          />
+        )}
+        {R2_ORIGIN && (
+          <link rel="preconnect" href={R2_ORIGIN} crossOrigin="anonymous" />
+        )}
+      </head>
       <body className="min-h-full flex flex-col overflow-x-hidden bg-[var(--ebg)] text-[var(--etext)]">
         <ThemeProvider />
         <a
@@ -181,7 +209,6 @@ export default function RootLayout({
 
         <QueryProvider>
           {children}
-          <StickyHelpButton />
         </QueryProvider>
         <PwaRegister />
         <script
